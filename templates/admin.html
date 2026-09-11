@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Admin - Input</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .input-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .bus-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+        }
+        .btn-submit {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-clear {
+            background: #f44336;
+            color: white;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .current-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 4px;
+        }
+        .bus-number-tag {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 8px 12px;
+            margin: 5px;
+            border-radius: 4px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚌 Bus Admin Panel</h1>
+    
+    <div class="input-section">
+        <label for="busInput"><strong>Enter bus numbers (comma-separated):</strong></label>
+        <input 
+            type="text" 
+            id="busInput" 
+            class="bus-input" 
+            placeholder="e.g., 5, 12, 8, 15, 22, 3, 18, 9"
+            autofocus
+        >
+        
+        <button class="btn btn-submit" onclick="submitBuses()">
+            ✅ Submit & Update Displays
+        </button>
+        
+        <button class="btn btn-clear" onclick="clearBuses()">
+            🗑️ Clear All Buses
+        </button>
+        
+        <div id="status" class="status"></div>
+    </div>
+    
+    <div class="current-display">
+        <h3>Currently Displayed:</h3>
+        <div id="currentBuses">No buses called yet</div>
+    </div>
+
+    <script>
+        // Connect to the server via WebSocket
+        const socket = io();
+        
+        // When we connect, log it
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        // When server confirms submission
+        socket.on('submission_confirmed', (data) => {
+            showStatus('Buses updated successfully!', 'success');
+        });
+        
+        // When buses are updated (to show current state)
+        socket.on('update_buses', (data) => {
+            updateCurrentDisplay(data.buses);
+        });
+        
+        function submitBuses() {
+            const input = document.getElementById('busInput').value;
+            
+            // Parse the input (split by commas, trim spaces, remove empties)
+            const buses = input
+                .split(',')
+                .map(b => b.trim())
+                .filter(b => b !== '');
+            
+            if (buses.length === 0) {
+                alert('Please enter at least one bus number');
+                return;
+            }
+            
+            // Send to server
+            socket.emit('submit_buses', { buses: buses });
+            
+            // Clear input
+            document.getElementById('busInput').value = '';
+        }
+        
+        function clearBuses() {
+            if (confirm('Clear all buses from displays?')) {
+                socket.emit('clear_buses');
+                document.getElementById('busInput').value = '';
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+        
+        function updateCurrentDisplay(buses) {
+            const container = document.getElementById('currentBuses');
+            
+            if (buses.length === 0) {
+                container.innerHTML = 'No buses called yet';
+                return;
+            }
+            
+            container.innerHTML = buses
+                .map(bus => `<span class="bus-number-tag">${bus}</span>`)
+                .join('');
+        }
+        
+        // Allow Enter key to submit
+        document.getElementById('busInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitBuses();
+            }
+        });
+    </script>
+</body>
+</html>
