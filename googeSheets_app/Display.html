@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial Black', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      font-size: 3em;
+      margin-bottom: 30px;
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+    }
+    
+    .group-section {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 25px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .group-section.now-boarding {
+      background: rgba(76, 175, 80, 0.3);
+      border: 3px solid #4CAF50;
+    }
+    
+    .group-section.up-next {
+      background: rgba(255, 193, 7, 0.3);
+      border: 3px solid #FFC107;
+    }
+    
+    .group-section.coming-soon {
+      background: rgba(33, 150, 243, 0.3);
+      border: 3px solid #2196F3;
+    }
+    
+    .group-title {
+      font-size: 2em;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .bus-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+    }
+    
+    .bus-number {
+      background: white;
+      color: #333;
+      font-size: 3.5em;
+      font-weight: bold;
+      padding: 25px 35px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    
+    .no-buses {
+      font-size: 1.5em;
+      opacity: 0.7;
+      text-align: center;
+      font-style: italic;
+    }
+    
+    .timestamp {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 1.3em;
+      opacity: 0.8;
+      background: rgba(0,0,0,0.3);
+      padding: 10px 20px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">🚌 Bus Dismissal</div>
+  <div id="content"></div>
+  <div id="timestamp" class="timestamp">Loading...</div>
+
+  <script>
+    let previousData = null;
+    
+    function loadBusData() {
+      google.script.run
+        .withSuccessHandler(displayBuses)
+        .withFailureHandler(handleError)
+        .getBusData();
+    }
+    
+    function displayBuses(data) {
+      // Only update if data actually changed
+      const dataString = JSON.stringify(data);
+      if (dataString === previousData) {
+        return; // No change, don't rebuild the display
+      }
+      previousData = dataString;
+      
+      const content = document.getElementById('content');
+      content.innerHTML = '';
+      
+      if (!data || data.length === 0) {
+        content.innerHTML = '<div class="no-buses">Waiting for bus assignments...</div>';
+        updateTimestamp();
+        return;
+      }
+      
+      const priorities = {
+        'NOW BOARDING': { class: 'now-boarding', emoji: '🚌', order: 0 },
+        'UP NEXT': { class: 'up-next', emoji: '⏭️', order: 1 },
+        'COMING SOON': { class: 'coming-soon', emoji: '📋', order: 2 }
+      };
+      
+      // Show only first 3 groups on display
+      const displayGroups = data.slice(0, 3);
+      
+      displayGroups.forEach((group, index) => {
+        const priority = priorities[group.status] || { class: '', emoji: '📍', order: 99 };
+        
+        const section = document.createElement('div');
+        section.className = `group-section ${priority.class}`;
+        
+        const title = document.createElement('div');
+        title.className = 'group-title';
+        title.innerHTML = `${priority.emoji} ${group.status}`;
+        
+        const busContainer = document.createElement('div');
+        busContainer.className = 'bus-container';
+        
+        if (group.buses.length === 0) {
+          busContainer.innerHTML = '<div class="no-buses">No buses assigned</div>';
+        } else {
+          group.buses.forEach((busNum) => {
+            const busDiv = document.createElement('div');
+            busDiv.className = 'bus-number';
+            busDiv.textContent = busNum;
+            busContainer.appendChild(busDiv);
+          });
+        }
+        
+        section.appendChild(title);
+        section.appendChild(busContainer);
+        content.appendChild(section);
+      });
+      
+      updateTimestamp();
+    }
+    
+    function updateTimestamp() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true 
+      });
+      document.getElementById('timestamp').textContent = `Updated: ${timeString}`;
+    }
+    
+    function handleError(error) {
+      console.error('Error loading data:', error);
+      document.getElementById('content').innerHTML = 
+        '<div class="no-buses">Error loading bus data. Retrying...</div>';
+    }
+    
+    // Load immediately
+    loadBusData();
+    
+    // Refresh every 5 seconds (changed from 2)
+    setInterval(loadBusData, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Display</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial Black', Arial, sans-serif;
+            background: linear-gradient(135deg, #021B79 0%, #0575E6 100%);
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        h1 {
+            font-size: 4em;
+            margin-bottom: 40px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            animation: fadeIn 1s;
+        }
+        
+        .bus-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 30px;
+            max-width: 90%;
+            padding: 40px;
+        }
+        
+        .bus-number {
+            background: white;
+            color: #333;
+            font-size: 5em;
+            font-weight: bold;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: popIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            transition: transform 0.3s;
+        }
+        
+        .bus-number:hover {
+            transform: scale(1.05);
+        }
+        
+        .no-buses {
+            font-size: 2.5em;
+            opacity: 0.8;
+            text-align: center;
+        }
+        
+        .timestamp {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 1.5em;
+            opacity: 0.7;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Pulse animation for new updates */
+        .pulse {
+            animation: pulse 0.6s;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🚌 Now Boarding</h1>
+    
+    <div id="busContainer" class="bus-container">
+        <div class="no-buses">Waiting for bus assignments...</div>
+    </div>
+    
+    <div id="timestamp" class="timestamp"></div>
+
+    <script>
+        const socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Display connected to server');
+            updateTimestamp();
+        });
+        
+        socket.on('update_buses', (data) => {
+            displayBuses(data.buses);
+            updateTimestamp();
+        });
+        
+        function displayBuses(buses) {
+            const container = document.getElementById('busContainer');
+            
+            if (buses.length === 0) {
+                container.innerHTML = '<div class="no-buses">Waiting for bus assignments...</div>';
+                return;
+            }
+            
+            // Clear and rebuild
+            container.innerHTML = '';
+            
+            buses.forEach((busNum, index) => {
+                const busDiv = document.createElement('div');
+                busDiv.className = 'bus-number';
+                busDiv.textContent = busNum;
+                
+                // Stagger animation
+                busDiv.style.animationDelay = `${index * 0.1}s`;
+                
+                container.appendChild(busDiv);
+            });
+            
+            // Add pulse effect to container
+            container.classList.add('pulse');
+            setTimeout(() => container.classList.remove('pulse'), 600);
+        }
+        
+        function updateTimestamp() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            document.getElementById('timestamp').textContent = `Updated: ${timeString}`;
+        }
+        
+        // Update timestamp every minute
+        setInterval(updateTimestamp, 60000);
+    </script>
+</body>
+</html>
